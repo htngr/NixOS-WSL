@@ -177,6 +177,7 @@ in
           environment.extraInit = mkIf cfg.interop.includePath ''PATH="$PATH:$WSLPATH"'';
         })
         (mkIf cfg.nativeSystemd {
+          users.users.root.shell = "${pkgs.bashInteractive}/bin/bash";
           wsl.wslConf = {
             user.default = config.users.users.${cfg.defaultUser}.name;
             boot.systemd = true;

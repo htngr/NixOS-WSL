@@ -51,7 +51,6 @@ with builtins; with lib; {
         storeContents = pkgs2storeContents [ installer ];
 
         contents = [
-          { source = config.environment.etc."wsl.conf".source; target = "/etc/wsl.conf"; }
           { source = config.environment.etc."fstab".source; target = "/etc/fstab"; }
           { source = passwd; target = "/etc/passwd"; }
           { source = "${pkgs.busybox}/bin/busybox"; target = "/bin/sh"; }
