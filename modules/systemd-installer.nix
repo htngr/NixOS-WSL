@@ -9,16 +9,21 @@ with builtins; with lib; {
 
       rootfs = let tarball = config.system.build.tarball; in "${tarball}/tarball/${tarball.fileName}.tar${tarball.extension}";
 
+      fakeSystemctl = pkgs.writeScript "systemctl" ''
+        ${pkgs.busybox}/bin/true
+      '';
+
       installer = pkgs.writeScript "installer.sh" ''
         #!${pkgs.busybox}/bin/sh
         BASEPATH=$PATH
-        export PATH=$BASEPATH:${pkgs.busybox}/bin # Add busybox to path
+        export PATH=$BASEPATH:${lib.makeBinPath [ pkgs.busybox ]} # Add utils to path
 
         set -e
         cd /
 
         echo "Unpacking root file system..."
-        ${pkgs.pv}/bin/pv ${rootfs} | tar xz
+        # busybox tar sometimes doesnt overwrite files
+        ${pkgs.pv}/bin/pv ${rootfs} | ${pkgs.gnutar}/bin/tar xz
 
         echo "Activating nix configuration..."
         LANG="C.UTF-8" /nix/var/nix/profiles/system/activate
@@ -32,17 +37,23 @@ with builtins; with lib; {
         nix-store --optimize
 
         # Don't package the shell here, it's contained in the rootfs
-        exec ${builtins.unsafeDiscardStringContext config.users.users.root.shell} "$@"
+        exec ${builtins.unsafeDiscardStringContext pkgs.wslNativeUtils}/bin/systemd-shim "$@"
+        
       '';
 
       # Set installer.sh as the root shell
       passwd = pkgs.writeText "passwd" ''
         root:x:0:0:System administrator:/root:${installer}
       '';
+
+      wsl-conf = pkgs.writeText "wsl.conf" (lib.generators.toINI { } (config.wsl.wslConf // {
+        boot.systemd = true;
+        user.default = "root";
+      }));
     in
     {
 
-      system.build.installer = mkTarball {
+      system.build.systemd-installer = mkTarball {
         fileName = "nixos-wsl-installer";
         compressCommand = "gzip";
         compressionExtension = ".gz";
@@ -51,12 +62,17 @@ with builtins; with lib; {
         storeContents = pkgs2storeContents [ installer ];
 
         contents = [
-          { source = config.environment.etc."wsl.conf".source; target = "/etc/wsl.conf"; }
+          { source = wsl-conf; target = "/etc/wsl.conf"; }
           { source = config.environment.etc."fstab".source; target = "/etc/fstab"; }
           { source = passwd; target = "/etc/passwd"; }
           { source = "${pkgs.busybox}/bin/busybox"; target = "/bin/sh"; }
+          # { source = "${pkgs.busybox}/bin/busybox"; target = "/bin/grep"; }
           { source = "${pkgs.busybox}/bin/busybox"; target = "/bin/mount"; }
-          { source = "${installer}"; target = "/nix/nixos-wsl/entrypoint"; }
+          # { source = "${pkgs.busybox}/bin/true"; target = "/bin/systemctl"; }
+          # { source = "${fakeSystemctl}"; target = "/bin/systemctl"; }
+          # { source = "${fakeSystemctl}"; target = "/lib/systemd/systemctl"; }
+          { source = "${installer}"; target = "/nix/nixos-wsl/entrypoint"; } # only needed for tests?
+          { source = "${installer}"; target = "/sbin/init"; }
         ];
 
         extraCommands = pkgs.writeShellScript "prepare" ''
