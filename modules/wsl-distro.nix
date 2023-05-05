@@ -119,7 +119,7 @@ in
             umountTmpX11.text = ''
               # this will be created again rw by systemd.tmpfiles.rules
               echo "unmounting readonly /tmp/.X11-unix..."
-              umount /tmp/.X11-unix/
+              umount /tmp/.X11-unix/ || true
             '';
             populateBin = lib.mkIf cfg.populateBin (stringAfter [ ] ''
               echo "setting up /bin..."
