@@ -58,12 +58,6 @@ let
     #!/bin/sh
     set -ex
 
-    function cleanup {
-      echo "testtttttttttttttttttttttt" 1>&2
-      echo "testtttttttttttttttttttttt" 2>&1
-    }
-    trap cleanup EXIT
-
     ${lib.optionalString cfg.useRemoteStore "/bin/mount-remote-store"}
 
     echo "Starting systemd..."
