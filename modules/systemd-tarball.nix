@@ -80,10 +80,21 @@ let
       exit 1
     fi
 
+    mnt() {
+      /bin/mount --bind "${mnt.root}/wsl/$1" "/$1"
+    }
+    mnt_ro() {
+      /bin/mount --bind --ro "${mnt.root}/wsl/$1" "/$1"
+    }
+
     echo "Mounting remote /nix/store..."
-    /bin/mkdir -p /nix/{store,var/nix/daemon-socket} || true
-    /bin/mount --bind --ro ${mnt.root}/wsl/nix/store /nix/store
-    /bin/mount --bind ${mnt.root}/wsl/nix/var/nix/daemon-socket /nix/var/nix/daemon-socket
+    /bin/mkdir -p /nix/store || true
+    /bin/mkdir -p /nix/var/nix/{daemon-socket,db,gc-socket,gcroots} || true
+    mnt_ro nix/store
+    mnt_ro nix/var/nix/db
+    mnt_ro nix/var/nix/gcroots
+    mnt nix/var/nix/gc-socket
+    mnt nix/var/nix/daemon-socket
   '';
 
   staticFiles = [
